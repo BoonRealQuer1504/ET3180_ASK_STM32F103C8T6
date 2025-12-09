@@ -1,0 +1,21 @@
+--cpu Cortex-M3
+"prj1\startup_stm32f103xb.o"
+"prj1\main.o"
+"prj1\stm32f1xx_it.o"
+"prj1\stm32f1xx_hal_msp.o"
+"prj1\stm32f1xx_hal_gpio_ex.o"
+"prj1\stm32f1xx_hal.o"
+"prj1\stm32f1xx_hal_rcc.o"
+"prj1\stm32f1xx_hal_rcc_ex.o"
+"prj1\stm32f1xx_hal_gpio.o"
+"prj1\stm32f1xx_hal_dma.o"
+"prj1\stm32f1xx_hal_cortex.o"
+"prj1\stm32f1xx_hal_pwr.o"
+"prj1\stm32f1xx_hal_flash.o"
+"prj1\stm32f1xx_hal_flash_ex.o"
+"prj1\stm32f1xx_hal_exti.o"
+"prj1\system_stm32f1xx.o"
+--strict --scatter "prj1\prj1.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "prj1.map" -o prj1\prj1.axf
