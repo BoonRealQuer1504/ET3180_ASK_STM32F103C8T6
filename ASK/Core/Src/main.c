@@ -144,15 +144,23 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM2_Init();
   MX_USART2_UART_Init();
+	
   /* USER CODE BEGIN 2 */
 	
 	Set_PWM_Frequency(1000);
-	uint8_t var[]= {"WELCOME TO STM32\r\n"};
-  HAL_UART_Transmit(&huart2,&var[0],20,100);
+
+	uint8_t welcome[] = "WELCOME\r\n";
+	HAL_UART_Transmit(&huart2, welcome, strlen((char*)welcome), HAL_MAX_DELAY);
+	HAL_UART_Transmit(&huart2,
+                          (uint8_t*)message,
+                          strlen(message),
+                          HAL_MAX_DELAY);
+	HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
+
+	HAL_UART_Receive_IT(&huart2, &uart_rx_char, 1);
+
   uint32_t period = __HAL_TIM_GET_AUTORELOAD(&htim2);
-  HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), HAL_MAX_DELAY);
-  HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
-  /* USER CODE END 2 */
+	/* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -162,16 +170,14 @@ int main(void)
     {
         uint8_t var1[] = ">>> NEW MESSAGE RECEIVED <<<\r\n";
         HAL_UART_Transmit(&huart2, var1, strlen((char*)var1), HAL_MAX_DELAY);
-
-        HAL_UART_Transmit(&huart2,
+        new_message_flag = 0;
+				HAL_UART_Transmit(&huart2,
                           (uint8_t*)message,
                           strlen(message),
                           HAL_MAX_DELAY);
-        HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
-
-        new_message_flag = 0;
+				HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
     }
-
+		
     Send_Frame(message);   // ch? g?i khi r?nh
     HAL_Delay(2000);
     /* USER CODE END WHILE */
@@ -343,14 +349,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     if (huart->Instance == USART2)
     {
-        if (uart_rx_char == '\r' || uart_rx_char == '\n')
+        if (uart_rx_char == '.')
         {
             uart_rx_buf[uart_rx_idx] = '\0';
+
             if (uart_rx_idx > 0)
             {
-                strcpy(message, uart_rx_buf);
+                strcpy(message, uart_rx_buf);   // c?p nh?t message
                 new_message_flag = 1;
             }
+
             uart_rx_idx = 0;
         }
         else
@@ -360,9 +368,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
                 uart_rx_buf[uart_rx_idx++] = uart_rx_char;
             }
         }
+
         HAL_UART_Receive_IT(&huart2, &uart_rx_char, 1);
     }
 }
+
 
 int _write(int file, char *ptr, int len)
 {
