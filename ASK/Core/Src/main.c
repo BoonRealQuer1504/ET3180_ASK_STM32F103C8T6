@@ -82,20 +82,59 @@ void Send_Byte_Unipolar_ASK(uint8_t byte, uint32_t bit_time_ms);
 
 
 void Send_Text_Unipolar_ASK(char *text, uint32_t bit_time_ms);
+void UART_Print_Byte_Binary(uint8_t byte)
+{
+    char buf[9];
+    for (int i = 7; i >= 0; i--)
+    {
+        buf[7 - i] = ((byte >> i) & 0x01) ? '1' : '0';
+    }
+    buf[8] = '\0';
+
+    HAL_UART_Transmit(&huart2, (uint8_t*)buf, 8, HAL_MAX_DELAY);
+}
+
+void UART_Print_Label_Byte(char *label, uint8_t byte)
+{
+    HAL_UART_Transmit(&huart2, (uint8_t*)label, strlen(label), HAL_MAX_DELAY);
+    UART_Print_Byte_Binary(byte);
+    HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
+}
 
 void Send_Frame(char *text)
 {
+		HAL_UART_Transmit(&huart2,
+                          (uint8_t*)text,
+                          strlen(text),
+                          HAL_MAX_DELAY);
+		HAL_UART_Transmit(&huart2,
+        (uint8_t*)"\r\n===== FRAME TX =====",
+        23, HAL_MAX_DELAY);
+		HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
+		UART_Print_Label_Byte("PREAMBLE: ", PREAMBLE);
     Send_Byte_Unipolar_ASK(PREAMBLE, 10);
+		UART_Print_Label_Byte("START   : ", START);
     Send_Byte_Unipolar_ASK(START, 10);
-
-    while (*text)
-        Send_Byte_Unipolar_ASK(*text++, 10);
-
+		HAL_UART_Transmit(&huart2,
+        (uint8_t*)"DATA    : ",
+        11, HAL_MAX_DELAY);
+    while (*text){
+			UART_Print_Byte_Binary(*text);
+      HAL_UART_Transmit(&huart2, (uint8_t*)" ", 1, HAL_MAX_DELAY);
+			Send_Byte_Unipolar_ASK(*text++, 10);}
+		HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
+    UART_Print_Label_Byte("STOP    : ", STOP);
     Send_Byte_Unipolar_ASK(STOP, 10);
+
+    HAL_UART_Transmit(&huart2,
+        (uint8_t*)"====================\r\n",
+        22, HAL_MAX_DELAY);
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);
 		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
 }
+
+
 
 
 

@@ -378,7 +378,7 @@ $$R = \frac{1}{T_{bit}} = \frac{1}{10 \times 10^{-3}} = 100 \text{ bps}$$
 
 - Khi bit dữ liệu có giá trị là 1, xung vuông có chu kỳ là $T_{bit}= \frac{T}{2}= 5ms  $ . Như vậy, số chu kỳ sóng mang trong 1 bit là: 
 
-$$N = f_{carrier} \times T_{bit} = 1000 \text{ Hz} \times 0.005 \text{ s} = 5 \text{ chu kỳ/bit}$$ 
+$$N = f_{carrier} \times T_{bit} = 1000 \text{ Hz} \times 0.005 \text{ s} = 5 \text{ chu kỳ/bit}$$
 
 Điều này chứng tỏ, Khi truyền bit 1, sẽ có 5 xung vuông được phát ra.
 
@@ -397,6 +397,89 @@ Sử dụng máy hiện sóng (Oscilloscope) để kiểm tra tín hiệu tại 
 - Khi kết nối CH340 với phần mềm Terminal trên máy tính, hệ thống phản hồi chính xác chuỗi mặc định "HELLO".
 
 - Khi gửi chuỗi ký tự mới kết thúc bằng dấu '.', hệ thống thực hiện ngắt UART thành công và cập nhật nội dung phát ngay trong chu kỳ tiếp theo.
+
+![Kết quả mô phỏng](assets/simu.png)
 ### 4.3. Kết quả thực tế
 
-### 4.4. Nhận xét và đánh giá
+
+Sau khi nạp chương trình vào vi điều khiển STM32F103C8T6 và kết nối các module phần cứng, nhóm đã tiến hành đo đạc thực nghiệm để kiểm chứng tính đúng đắn của thuật toán điều chế ASK.
+
+#### a. Kiểm tra tín hiệu vật lý trên Oscilloscope
+
+Sử dụng máy hiện sóng hai kênh để quan sát đồng thời tín hiệu dữ liệu gốc (Baseband) và tín hiệu sau điều chế (ASK Output).
+
+- Kênh 1 (Vàng) - Chân PA0: Tín hiệu điều chế PWM 1kHz. Khi bit 1, xuất hiện các bó xung vuông với biên độ 5V. Khi phóng to (Zoom-in), đo được tần số sóng mang là 1.001 kHz, đúng với cấu hình Timer 2 trong mã nguồn. Trạng thái Bit 0,đường tín hiệu phẳng hoàn toàn ở mức 0V, không có hiện tượng nhiễu trắng hay rò rỉ sóng mang (Carrier Leakage), cho thấy chế độ OOK hoạt động triệt để.
+
+
+- Kênh 2 (Tím) - Chân PA5: Tín hiệu Digital Output phản ánh chuỗi bit dữ liệu. Mỗi xung vuông (mức cao 5V) có độ rộng ổn định là 10.02ms. Điều này chứng minh hàm HAL_Delay() và xung nhịp hệ thống hoạt động chính xác.
+
+![Kết quả đo](assets/osc.png)
+
+#### b. Kiểm tra cấu trúc khung tin
+
+Bằng cách phân tích chuỗi xung trên Oscilloscope, nhóm đã giải mã ngược lại trình tự gửi dữ liệu:
+
+- Vùng Preamble: 8 chu kỳ bật/tắt liên tục (0xAA) xuất hiện đầu tiên để ổn định bộ nhận.
+
+- Vùng Start Byte: Mã 0x55 xuất hiện ngay sau đó, đánh dấu điểm bắt đầu đồng bộ hóa.
+
+- Vùng Payload: Các ký tự ASCII của chuỗi "HELLO" được truyền đi với bit MSB (bit có trọng số cao nhất) đứng trước.
+
+- Vùng Stop Byte: Kết thúc bằng ký tự \r (0x0D), kéo dài thời gian nghỉ trước khi lặp lại khung mới.
+
+![Kết quả đo](assets/hercules.png)
+
+
+#### c. Kiểm tra giao tiếp UART và Cập nhật dữ liệu động
+
+
+Sử dụng module CH340 kết nối với phần mềm máy tính Hercules để kiểm tra khả năng tương tác:
+
+- Tốc độ phản hồi: Thiết lập Baudrate 115200 trên máy tính cho kết quả hiển thị ký tự rõ ràng, không bị lỗi font hay mất byte.
+
+
+- Khả năng thay đổi nội dung: Khi nhập chuỗi: "NIHAO." và nhấn Enter, Ngay lập tức, dạng sóng trên Oscilloscope thay đổi cấu trúc phần Payload theo mã ASCII của chữ "N-I-H-A-O".
+
+![Kết quả đo](assets/change.png)
+
+
+## 5. Nhận xét và đánh giá
+
+### 5.1. Nhận xét kết quả thực hiện 
+
+Thông qua quá trình nghiên cứu lý thuyết, triển khai mã nguồn trên hệ sinh thái STM32 và thực nghiệm đo đạc, ta có thể đưa ra các nhận xét cụ thể như sau:
+
+- Việc sử dụng bộ định thời Timer 2 để tạo sóng mang PWM thay vì các vòng lặp phần mềm (software delay) đã giúp tần số sóng mang đạt độ ổn định tuyệt đối tại 1kHz.
+
+- Phương pháp Unipolar ASK (OOK) đã được hiện thực hóa thành công. Tín hiệu tại chân PA0 thể hiện rõ sự tương quan giữa dữ liệu gốc và sóng mang: khi bit dữ liệu là '1', sóng mang được phát đi với biên độ tối đa; khi bit là '0', hệ thống ngắt hoàn toàn tín hiệu.
+
+- Cơ chế ngắt UART (Interrupt) kết hợp với bộ đệm tạm (buffer) hoạt động hiệu quả. Hệ thống có khả năng xử lý song song: vừa duy trì luồng phát vô tuyến liên tục, vừa sẵn sàng tiếp nhận và cập nhật thông điệp mới từ máy tính thông qua module CH340 mà không làm gián đoạn khung tin đang truyền.
+
+- Việc áp dụng cấu trúc khung bao gồm Preamble (0xAA) và Start Byte (0x55) là một quyết định kỹ thuật đúng đắn. Trong thực tế đo đạc, các thành phần này giúp bộ thu dễ dàng phân biệt giữa nhiễu môi trường và dữ liệu thực, từ đó nâng cao độ tin cậy của hệ thống.
+
+
+### 5.2. Ưu điểm và hạn chế 
+
+Về các ưu điểm:
+
+- Kiến trúc tối ưu: Tận dụng tối đa sức mạnh của lõi ARM Cortex-M3 để quản lý ngoại vi phức tạp nhưng vẫn đảm bảo code tường minh, dễ bảo trì.
+
+- Giao diện thân thiện: Người dùng dễ dàng cấu hình nội dung phát thông qua các phần mềm Terminal phổ biến mà không cần chuyên môn sâu về lập trình nhúng.
+
+- Chi phí thấp: Sử dụng các linh kiện phổ thông (Blue Pill, CH340, module RF 433MHz) nhưng vẫn đạt được hiệu quả giáo khoa cao trong việc minh họa lý thuyết điều chế biên độ. 
+
+
+Các hạn chế còn tồn tại:
+
+- Do sử dụng xung vuông làm sóng mang, tín hiệu vẫn chứa các hài bậc cao. Mặc dù đã có thể cải thiện bằng bộ lọc RC, nhưng phổ tín hiệu vẫn chưa thực sự "sạch" như các bộ phát chuyên dụng sử dụng mạch dao động hình sin.
+
+
+- Tốc độ 100 bps là khá thấp so với nhu cầu truyền tải dữ liệu hiện đại, chủ yếu phục vụ mục đích trình diễn nguyên lý và quan sát trên máy đo oscilloscope.
+
+
+### 5.2. Kết luận chung
+
+Dự án "Hệ thống phát tín hiệu điều chế ASK sử dụng STM32F103C8T6" đã cơ bản hoàn thành  các mục tiêu đề ra. Về mặt lý thuyết, dự án đã hệ thống hóa được quy trình số hóa và điều chế tín hiệu. Về mặt thực hành, ta đã xây dựng thành công một bộ phát ASK hoạt động ổn định, có khả năng tùy biến thông điệp linh hoạt qua giao tiếp UART.
+
+Đây là nền tảng quan trọng để phát triển các ứng dụng xa hơn. Dự án không chỉ dừng lại ở một bài tập kỹ thuật mà còn giúp người thực hiện hiểu sâu hơn về bản chất vật lý của sóng vô tuyến và cách thức điều khiển chúng thông qua vi điều khiển hiện đại.
+
