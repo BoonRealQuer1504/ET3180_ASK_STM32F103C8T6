@@ -307,13 +307,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         if (uart_rx_char == '.')
         {
             uart_rx_buf[uart_rx_idx] = '\0';
-
             if (uart_rx_idx > 0)
             {
                 strcpy(message, uart_rx_buf);   // c?p nh?t message
                 new_message_flag = 1;
             }
-
             uart_rx_idx = 0;
         }
         else
@@ -323,7 +321,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
                 uart_rx_buf[uart_rx_idx++] = uart_rx_char;
             }
         }
-
         HAL_UART_Receive_IT(&huart2, &uart_rx_char, 1);
     }
 }
